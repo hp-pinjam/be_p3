@@ -5,8 +5,8 @@ type User struct {
 	Password string `bson:"password,omitempty" json:"password,omitempty"`
 }
 
-// type Credential struct {
-// 	Status  bool   `json:"status" bson:"status"`
-// 	Token   string `json:"token,omitempty" bson:"token,omitempty"`
-// 	Message string `json:"message,omitempty" bson:"message,omitempty"`
-// }
+type Credential struct {
+	Status  bool   `json:"status" bson:"status"`
+	Token   string `json:"token,omitempty" bson:"token,omitempty"`
+	Message string `json:"message,omitempty" bson:"message,omitempty"`
+}
