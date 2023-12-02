@@ -18,7 +18,7 @@ func TestGeneratePrivateKeyPaseto(t *testing.T) {
 	fmt.Println(hasil, err)
 }
 func TestValidateToken(t *testing.T) {
-	tokenstring := "eyJleHAiOiIyMDIzLTEwLTI2VDA1OjAyOjQ1WiIsImlhdCI6IjIwMjMtMTAtMjZUMDM6MDI6NDVaIiwiaWQiOiJkYWZmYSIsIm5iZiI6IjIwMjMtMTAtMjZUMDM6MDI6NDVaIn3cLq58WoqF4cfwdtKZiUas4-p4PVbwDaF4sa0QConAH_hZWT726D8" // Gantilah dengan token PASETO yang sesuai
+	tokenstring := "eyJleHAiOiIyMDIzLTEyLTAyVDExOjI3OjAwWiIsImlhdCI6IjIwMjMtMTItMDJUMDk6Mjc6MDBaIiwiaWQiOiJmYXJoYW4iLCJuYmYiOiIyMDIzLTEyLTAyVDA5OjI3OjAwWiJ9Ju3TfP9RyDedo4qDqGon6eHNiiFerom4o8Y-_BwzztfnjxvA7ClLAB2DyV9-Ga87AXt7nqCvw83yqM3UvEIjCQ" // Gantilah dengan token PASETO yang sesuai
 	publicKey := "34984c89d5553bd07ced0b9ed6306cc010418a1758fae39e92bfce521ee7b44e"
 	payload, _err := watoken.Decode(publicKey, tokenstring)
 	if _err != nil {

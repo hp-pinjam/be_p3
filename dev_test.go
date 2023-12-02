@@ -131,8 +131,8 @@ func TestGetAllUser(t *testing.T) {
 func TestInsertHp(t *testing.T) {
 	mconn := SetConnection("MONGOSTRING", "hppinjam")
 	var hpdata model.Hp
-	hpdata.Title = "Perjalanan"
-	hpdata.Description = "pergi ke bali"
+	hpdata.Title = "Iphone 15"
+	hpdata.Description = "hp keluaran terbaru dari apple"
 	hpdata.IsDone = true
 
 	nama, err := modul.InsertHp(mconn, "hp", hpdata)
