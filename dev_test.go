@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"testing"
 
-	model "github.com/wegotour/be_p3/model"
-	modul "github.com/wegotour/be_p3/modul"
+	model "github.com/hp-pinjam/be_p3/model"
+	modul "github.com/hp-pinjam/be_p3/modul"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var mconn = SetConnection("MONGOSTRING", "wegotour")
+var mconn = SetConnection("MONGOSTRING", "hppinjam")
 
 // user
 func TestRegister(t *testing.T) {
 	var data model.User
 	data.ID = primitive.NewObjectID()
-	data.Email = "dapskuy@gmail.com"
-	data.Username = "dapskuy"
+	data.Email = "rijik@gmail.com"
+	data.Username = "rijik"
 	data.Role = "user"
 	data.Password = "kepodah"
 
@@ -31,7 +31,7 @@ func TestRegister(t *testing.T) {
 // test login
 func TestLogIn(t *testing.T) {
 	var userdata model.User
-	userdata.Username = "dapskuy"
+	userdata.Username = "rijik"
 	userdata.Password = "kepodah"
 	user, status, err := modul.LogIn(mconn, "user", userdata)
 	fmt.Println("Status", status)
@@ -44,8 +44,8 @@ func TestLogIn(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	var data model.User
-	data.Email = "dapskuy@gmail.com"
-	data.Username = "dapskuy"
+	data.Email = "rijik@gmail.com"
+	data.Username = "rijik"
 	data.Role = "admin"
 
 	data.Password = "kepodah" // password tidak diubah
@@ -69,9 +69,9 @@ func TestUpdateUser(t *testing.T) {
 // test change password
 func TestChangePassword(t *testing.T) {
 	var data model.User
-	data.Email = "dapskuy@gmail.com" // email tidak diubah
-	data.Username = "dapskuy"        // username tidak diubah
-	data.Role = "admin"              // role tidak diubah
+	data.Email = "rijik@gmail.com" // email tidak diubah
+	data.Username = "rijik"        // username tidak diubah
+	data.Role = "admin"            // role tidak diubah
 
 	data.Password = "kepodah"
 
@@ -88,7 +88,7 @@ func TestChangePassword(t *testing.T) {
 
 // test delete user
 func TestDeleteUser(t *testing.T) {
-	username := "dapskuy"
+	username := "rijik"
 
 	err := modul.DeleteUser(mconn, "user", username)
 	if err != nil {
@@ -105,7 +105,7 @@ func TestGetUserFromID(t *testing.T) {
 }
 
 func TestGetUserFromUsername(t *testing.T) {
-	anu, err := modul.GetUserFromUsername(mconn, "user", "dapskuy")
+	anu, err := modul.GetUserFromUsername(mconn, "user", "rijik")
 	if err != nil {
 		t.Errorf("Error getting user: %v", err)
 		return
@@ -127,32 +127,32 @@ func TestGetAllUser(t *testing.T) {
 	fmt.Println(anu)
 }
 
-// ticket
-func TestInsertTicket(t *testing.T) {
-	mconn := SetConnection("MONGOSTRING", "wegotour")
-	var ticketdata model.Ticket
-	ticketdata.Title = "Perjalanan"
-	ticketdata.Description = "pergi ke bali"
-	ticketdata.IsDone = true
+// hp
+func TestInsertHp(t *testing.T) {
+	mconn := SetConnection("MONGOSTRING", "hppinjam")
+	var hpdata model.Hp
+	hpdata.Title = "Perjalanan"
+	hpdata.Description = "pergi ke bali"
+	hpdata.IsDone = true
 
-	nama, err := modul.InsertTicket(mconn, "ticket", ticketdata)
+	nama, err := modul.InsertHp(mconn, "hp", hpdata)
 	if err != nil {
-		t.Errorf("Error inserting ticket: %v", err)
+		t.Errorf("Error inserting hp: %v", err)
 	}
 	fmt.Println(nama)
 }
 
-func TestGetTicketFromID(t *testing.T) {
-	mconn := SetConnection("MONGOSTRING", "wegotour")
+func TestGetHpFromID(t *testing.T) {
+	mconn := SetConnection("MONGOSTRING", "hppinjam")
 	id, _ := primitive.ObjectIDFromHex("6548bce6c31c8ec3f02fa11d")
-	anu := modul.GetTicketFromID(mconn, "ticket", id)
+	anu := modul.GetHpFromID(mconn, "hp", id)
 	fmt.Println(anu)
 }
 
-func TestGetTicketList(t *testing.T) {
-	anu, err := modul.GetTicketList(mconn, "ticket")
+func TestGetHpList(t *testing.T) {
+	anu, err := modul.GetHpList(mconn, "hp")
 	if err != nil {
-		t.Errorf("Error getting ticket: %v", err)
+		t.Errorf("Error getting hp: %v", err)
 		return
 	}
 	fmt.Println(anu)
