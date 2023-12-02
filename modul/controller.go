@@ -14,7 +14,7 @@ import (
 
 	"github.com/aiteung/atdb"
 	"github.com/badoux/checkmail"
-	model "github.com/wegotour/be_p3/model"
+	model "github.com/hp-pinjam/be_p3/model"
 )
 
 func MongoConnect(MONGOCONNSTRINGENV, dbname string) *mongo.Database {

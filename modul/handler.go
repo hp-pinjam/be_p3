@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	model "github.com/wegotour/be_p3/model"
+	model "github.com/hp-pinjam/be_p3/model"
 	"github.com/whatsauth/watoken"
 )
 
