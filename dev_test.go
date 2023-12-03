@@ -9,31 +9,33 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var mconn = SetConnection("MONGOSTRING", "hppinjam")
+var mconn = modul.MongoConnect("MONGOSTRING", "hppinjam")
 
 // user
 func TestRegister(t *testing.T) {
 	var data model.User
-	data.ID = primitive.NewObjectID()
 	data.Email = "rijik@gmail.com"
 	data.Username = "rijik"
-	data.Role = "user"
-	data.Password = "kepodah"
+	// data.Role = "user"
+	data.Password = "secret"
+	data.ConfirmPassword = "secret"
 
 	err := modul.Register(mconn, "user", data)
 	if err != nil {
 		t.Errorf("Error registering user: %v", err)
 	} else {
-		fmt.Println("Register success", data)
+		fmt.Println("Register success", data.Username)
 	}
 }
 
 // test login
 func TestLogIn(t *testing.T) {
-	var userdata model.User
-	userdata.Username = "rijik"
-	userdata.Password = "kepodah"
-	user, status, err := modul.LogIn(mconn, "user", userdata)
+	var data model.User
+	data.Username = "rijik"
+	data.Password = "secret"
+	data.Role = "user"
+
+	user, status, err := modul.LogIn(mconn, "user", data)
 	fmt.Println("Status", status)
 	if err != nil {
 		t.Errorf("Error logging in user: %v", err)
@@ -44,14 +46,12 @@ func TestLogIn(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	var data model.User
-	data.Email = "rijik@gmail.com"
+	data.Email = "rijikhaura@gmail.com"
 	data.Username = "rijik"
-	data.Role = "admin"
 
-	data.Password = "kepodah" // password tidak diubah
-
-	id, err := primitive.ObjectIDFromHex("654a6513226d8ad245cd01ff")
-	data.ID = id
+	id := "656c3f638442be4a7c185a09"
+	ID, err := primitive.ObjectIDFromHex(id)
+	data.ID = ID
 	if err != nil {
 		fmt.Printf("Data tidak berhasil diubah")
 	} else {
@@ -69,38 +69,48 @@ func TestUpdateUser(t *testing.T) {
 // test change password
 func TestChangePassword(t *testing.T) {
 	var data model.User
-	data.Email = "rijik@gmail.com" // email tidak diubah
-	data.Username = "rijik"        // username tidak diubah
-	data.Role = "admin"            // role tidak diubah
+	data.Password = "secrets"
+	data.ConfirmPassword = "secrets"
 
-	data.Password = "kepodah"
-
-	// username := "dapskut123"
+	username := "rijik"
+	data.Username = username
 
 	_, status, err := modul.ChangePassword(mconn, "user", data)
 	fmt.Println("Status", status)
 	if err != nil {
 		t.Errorf("Error updateting document: %v", err)
 	} else {
-		fmt.Println("Password berhasil diubah dengan username:", data.Username)
+		fmt.Println("Password berhasil diubah dengan username:", username)
 	}
 }
 
 // test delete user
 func TestDeleteUser(t *testing.T) {
-	username := "rijik"
+	var data model.User
+	data.Username = "rijik"
 
-	err := modul.DeleteUser(mconn, "user", username)
+	status, err := modul.DeleteUser(mconn, "user", data)
+	fmt.Println("Status", status)
 	if err != nil {
-		t.Errorf("Error deleting user: %v", err)
+		t.Errorf("Error deleting document: %v", err)
 	} else {
-		fmt.Println("Delete user success")
+		fmt.Println("Delete user" + data.Username + "success")
 	}
 }
 
 func TestGetUserFromID(t *testing.T) {
-	id, _ := primitive.ObjectIDFromHex("6539d6c46700af5da789a678")
-	anu, _ := modul.GetUserFromID(mconn, "user", id)
+	id := "656bf30c733cf24a0f73d0a8"
+	ID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		t.Errorf("Error converting id to ObjectID: %v", err)
+		return
+	}
+
+	anu, err := modul.GetUserFromID(mconn, "user", ID)
+	if err != nil {
+		t.Errorf("Error getting user: %v", err)
+		return
+	}
 	fmt.Println(anu)
 }
 
@@ -114,7 +124,7 @@ func TestGetUserFromUsername(t *testing.T) {
 }
 
 func TestGetUserFromEmail(t *testing.T) {
-	anu, _ := modul.GetUserFromEmail(mconn, "user", "tejo@gmail.com")
+	anu, _ := modul.GetUserFromEmail(mconn, "user", "rijik@gmail.com")
 	fmt.Println(anu)
 }
 
@@ -129,31 +139,80 @@ func TestGetAllUser(t *testing.T) {
 
 // hp
 func TestInsertHp(t *testing.T) {
-	mconn := SetConnection("MONGOSTRING", "hppinjam")
-	var hpdata model.Hp
-	hpdata.Title = "Iphone 15"
-	hpdata.Description = "hp keluaran terbaru dari apple"
-	hpdata.IsDone = true
+	var data model.Hp
+	data.Title = "Vivo"
+	data.Description = "vivo adalah sahabat"
+	data.Deadline = "12/04/2023"
+	// data.IsDone = false
 
-	nama, err := modul.InsertHp(mconn, "hp", hpdata)
+	uid := "0040f398-1200-4f36-8332-6752ab3e55c0"
+
+	id, err := modul.InsertHp(mconn, "hp", data, uid)
 	if err != nil {
-		t.Errorf("Error inserting hp: %v", err)
+		t.Errorf("Error inserting Hp: %v", err)
 	}
-	fmt.Println(nama)
+	fmt.Println(id)
 }
 
 func TestGetHpFromID(t *testing.T) {
-	mconn := SetConnection("MONGOSTRING", "hppinjam")
-	id, _ := primitive.ObjectIDFromHex("6548bce6c31c8ec3f02fa11d")
-	anu := modul.GetHpFromID(mconn, "hp", id)
-	fmt.Println(anu)
-}
-
-func TestGetHpList(t *testing.T) {
-	anu, err := modul.GetHpList(mconn, "hp")
+	id, _ := primitive.ObjectIDFromHex("655c4408d06d3d2ddba5d1d7")
+	anu, err := modul.GetHpFromID(mconn, "hp", id)
 	if err != nil {
 		t.Errorf("Error getting hp: %v", err)
 		return
 	}
 	fmt.Println(anu)
+}
+
+func TestGetHpFromUsername(t *testing.T) {
+	anu, err := modul.GetHpFromUsername(mconn, "hp", "rijik")
+	if err != nil {
+		t.Errorf("Error getting hp: %v", err)
+		return
+	}
+	fmt.Println(anu)
+}
+
+func TestUpdateHp(t *testing.T) {
+	var data model.Hp
+	data.Title = "Belajar Golang"
+	data.Description = "Hari ini belajar golang"
+	data.Deadline = "02/02/2021"
+
+	id := "655c5047370b53741a9705d8"
+	ID, err := primitive.ObjectIDFromHex(id)
+	data.ID = ID
+	if err != nil {
+		fmt.Printf("Data tidak berhasil diubah")
+	} else {
+
+		_, status, err := modul.UpdateHp(mconn, "hp", data)
+		fmt.Println("Status", status)
+		if err != nil {
+			t.Errorf("Error updating hp with id: %v", err)
+			return
+		} else {
+			fmt.Printf("Data berhasil diubah untuk id: %s\n", id)
+		}
+		fmt.Println(data)
+	}
+}
+
+func TestDeleteHp(t *testing.T) {
+	id := "655c4408d06d3d2ddba5d1d7"
+	ID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		t.Errorf("Error converting id to ObjectID: %v", err)
+		return
+	} else {
+
+		status, err := modul.DeleteHp(mconn, "hp", ID)
+		fmt.Println("Status", status)
+		if err != nil {
+			t.Errorf("Error deleting document: %v", err)
+			return
+		} else {
+			fmt.Println("Delete success")
+		}
+	}
 }
