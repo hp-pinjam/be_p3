@@ -2,10 +2,14 @@ package modul
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"crypto/rand"
+	"encoding/hex"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,7 +23,6 @@ import (
 
 func MongoConnect(MONGOCONNSTRINGENV, dbname string) *mongo.Database {
 	var DBmongoinfo = atdb.DBInfo{
-		// DBString: "mongodb+srv://admin:admin@projectexp.pa7k8.gcp.mongodb.net", //os.Getenv(MONGOCONNSTRINGENV),
 		DBString: os.Getenv(MONGOCONNSTRINGENV),
 		DBName:   dbname,
 	}
@@ -37,126 +40,160 @@ func InsertOneDoc(db *mongo.Database, col string, docs interface{}) (insertedID 
 }
 
 // user
+func GenerateUID(len int) (string, error) {
+	bytes := make([]byte, len)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(bytes), nil
+}
+
 func Register(db *mongo.Database, col string, userdata model.User) error {
-	if userdata.Username == "" || userdata.Password == "" || userdata.Email == "" {
-		return fmt.Errorf("data tidak lengkap")
+	if userdata.Email == "" || userdata.Username == "" || userdata.Password == "" || userdata.ConfirmPassword == "" {
+		return fmt.Errorf("Data tidak lengkap")
 	}
 
 	// Periksa apakah email valid
-	if err := checkmail.ValidateFormat(userdata.Email); err != nil {
-		return fmt.Errorf("email tidak valid")
+	err := checkmail.ValidateFormat(userdata.Email)
+	if err != nil {
+		return fmt.Errorf("Email tidak valid")
 	}
 
 	// Periksa apakah email dan username sudah terdaftar
 	userExists, _ := GetUserFromEmail(db, col, userdata.Email)
 	if userExists.Email != "" {
-		return fmt.Errorf("email sudah terdaftar")
+		return fmt.Errorf("Email sudah terdaftar")
 	}
+
 	userExists, _ = GetUserFromUsername(db, col, userdata.Username)
 	if userExists.Username != "" {
-		return fmt.Errorf("username sudah terdaftar")
+		return fmt.Errorf("Username sudah terdaftar")
 	}
 
 	// Periksa apakah password memenuhi syarat
 	if len(userdata.Password) < 6 {
-		return fmt.Errorf("password minimal 6 karakter")
+		return fmt.Errorf("Password minimal 6 karakter")
 	}
+
 	if strings.Contains(userdata.Password, " ") {
-		return fmt.Errorf("password tidak boleh mengandung spasi")
+		return fmt.Errorf("Password tidak boleh mengandung spasi")
 	}
 
 	// Periksa apakah username memenuhi syarat
 	if strings.Contains(userdata.Username, " ") {
-		return fmt.Errorf("username tidak boleh mengandung spasi")
+		return fmt.Errorf("Username tidak boleh mengandung spasi")
+	}
+
+	// Periksa apakah password dan konfirmasi password sama
+	if userdata.Password != userdata.ConfirmPassword {
+		return fmt.Errorf("Password dan konfirmasi password tidak sama")
+	}
+
+	// uid := GenerateUID(&userdata)
+
+	uid, err := GenerateUID(8)
+	if err != nil {
+		return fmt.Errorf("GenerateUID: %v", err)
 	}
 
 	// Simpan pengguna ke basis data
 	hash, _ := HashPassword(userdata.Password)
-	user := bson.M{
-		"_id":      primitive.NewObjectID(),
-		"email":    userdata.Email,
-		"username": userdata.Username,
-		"password": hash,
-		"role":     "user",
+	user := bson.D{
+		{Key: "_id", Value: primitive.NewObjectID()},
+		{Key: "uid", Value: uid},
+		{Key: "email", Value: userdata.Email},
+		{Key: "username", Value: userdata.Username},
+		{Key: "password", Value: hash},
+		{Key: "role", Value: "user"},
 	}
-	_, err := InsertOneDoc(db, col, user)
+
+	_, err = InsertOneDoc(db, col, user)
 	if err != nil {
 		return fmt.Errorf("SignUp: %v", err)
 	}
+
 	return nil
 }
 
 func LogIn(db *mongo.Database, col string, userdata model.User) (user model.User, status bool, err error) {
-	if userdata.Username == "" || userdata.Password == "" {
-		err = fmt.Errorf("data tidak lengkap")
+	if userdata.Username == "" || userdata.Password == "" || userdata.Role == "" {
+		err = fmt.Errorf("Data tidak lengkap")
 		return user, false, err
 	}
 
 	// Periksa apakah pengguna dengan username tertentu ada
 	userExists, _ := GetUserFromUsername(db, col, userdata.Username)
 	if userExists.Username == "" {
-		err = fmt.Errorf("username tidak ditemukan")
+		err = fmt.Errorf("Username tidak ditemukan")
 		return user, false, err
 	}
 
 	// Periksa apakah kata sandi benar
 	if !CheckPasswordHash(userdata.Password, userExists.Password) {
-		err = fmt.Errorf("password salah")
+		err = fmt.Errorf("Password salah")
 		return user, false, err
 	}
+
+	// Periksa apakah role benar
+	if userdata.Role != userExists.Role {
+		err = fmt.Errorf("Role tidak sesuai")
+		return user, false, err
+	}
+
 	return userExists, true, nil
 }
 
 func UpdateUser(db *mongo.Database, col string, userdata model.User) (user model.User, status bool, err error) {
 	if userdata.Username == "" || userdata.Email == "" {
-		err = fmt.Errorf("data tidak boleh kosong")
+		err = fmt.Errorf("Data tidak boleh kosong")
 		return user, false, err
 	}
 
-	// Simpan pengguna ke basis data
-	existingUser, err := GetUserFromID(db, col, userdata.ID)
+	userExists, err := GetUserFromID(db, col, userdata.ID)
 	if err != nil {
 		return user, false, err
 	}
 
 	// Periksa apakah data yang akan diupdate sama dengan data yang sudah ada
-	if userdata.Username == existingUser.Username && userdata.Email == existingUser.Email {
-		err = fmt.Errorf("data yang ingin diupdate tidak boleh sama")
+	if userdata.Username == userExists.Username && userdata.Email == userExists.Email {
+		err = fmt.Errorf("Data yang ingin diupdate tidak boleh sama")
 		return user, false, err
 	}
 
 	checkmail.ValidateFormat(userdata.Email)
 	if err != nil {
-		err = fmt.Errorf("email tidak valid")
+		err = fmt.Errorf("Email tidak valid")
 		return user, false, err
 	}
 
 	// Periksa apakah username memenuhi syarat
 	if strings.Contains(userdata.Username, " ") {
-		err = fmt.Errorf("username tidak boleh mengandung spasi")
+		err = fmt.Errorf("Username tidak boleh mengandung spasi")
 		return user, false, err
 	}
 
 	// Simpan pengguna ke basis data
-	hash, _ := HashPassword(userdata.Password)
 	filter := bson.M{"_id": userdata.ID}
-	update := bson.M{
-		"$set": bson.M{
-			"email":    userdata.Email,
-			"username": userdata.Username,
-			"password": hash,
-			"role":     "user",
-		},
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "email", Value: userdata.Email},
+			{Key: "username", Value: userdata.Username},
+		}},
 	}
+
 	cols := db.Collection(col)
 	result, err := cols.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return user, false, err
 	}
+
 	if result.ModifiedCount == 0 {
-		err = fmt.Errorf("data tidak berhasil diupdate")
+		err = fmt.Errorf("Data tidak berhasil diupdate")
 		return user, false, err
 	}
+
 	return user, true, nil
 }
 
@@ -168,22 +205,30 @@ func ChangePassword(db *mongo.Database, col string, userdata model.User) (user m
 	}
 
 	// Periksa apakah password memenuhi syarat
-	if userdata.Password == "" {
-		err = fmt.Errorf("password tidak boleh kosong")
+	if userdata.Password == "" || userdata.ConfirmPassword == "" {
+		err = fmt.Errorf("Password tidak boleh kosong")
 		return user, false, err
 	}
+
 	if len(userdata.Password) < 6 {
-		err = fmt.Errorf("password minimal 6 karakter")
+		err = fmt.Errorf("Password minimal 6 karakter")
 		return user, false, err
 	}
+
 	if strings.Contains(userdata.Password, " ") {
-		err = fmt.Errorf("password tidak boleh mengandung spasi")
+		err = fmt.Errorf("Password tidak boleh mengandung spasi")
 		return user, false, err
 	}
 
 	// Periksa apakah password sama dengan password lama
 	if CheckPasswordHash(userdata.Password, userExists.Password) {
-		err = fmt.Errorf("password tidak boleh sama")
+		err = fmt.Errorf("Password tidak boleh sama")
+		return user, false, err
+	}
+
+	// Periksa apakah password dan konfirmasi password sama
+	if userdata.Password != userdata.ConfirmPassword {
+		err = fmt.Errorf("Password dan konfirmasi password tidak sama")
 		return user, false, err
 	}
 
@@ -193,127 +238,195 @@ func ChangePassword(db *mongo.Database, col string, userdata model.User) (user m
 	filter := bson.M{"username": userdata.Username}
 	update := bson.M{
 		"$set": bson.M{
-			"email":    userdata.Email,
-			"username": userdata.Username,
 			"password": userExists.Password,
-			"role":     "user",
 		},
 	}
+
 	cols := db.Collection(col)
 	result, err := cols.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return user, false, err
 	}
+
 	if result.ModifiedCount == 0 {
 		err = fmt.Errorf("PAssword tidak berhasil diupdate")
 		return user, false, err
 	}
+
 	return user, true, nil
 }
 
-func DeleteUser(db *mongo.Database, col string, username string) error {
-	cols := db.Collection(col)
-	filter := bson.M{"username": username}
-	result, err := cols.DeleteOne(context.Background(), filter)
+func DeleteUser(db *mongo.Database, col string, userdata model.User) (status bool, err error) {
+	_, err = GetUserFromUsername(db, col, userdata.Username)
 	if err != nil {
-		return err
-	}
-	if result.DeletedCount == 0 {
-		return fmt.Errorf("data tidak berhasil dihapus")
+		err = fmt.Errorf("Username tidak ditemukan")
+		return false, err
 	}
 
-	return nil
+	filter := bson.M{"username": userdata.Username}
+	cols := db.Collection(col)
+
+	result, err := cols.DeleteOne(context.Background(), filter)
+	if err != nil {
+		err = fmt.Errorf("Error deleting document: %v", err)
+		return false, err
+	}
+
+	if result.DeletedCount == 0 {
+		return false, fmt.Errorf("Failed to delete user")
+	}
+
+	return true, nil
 }
 
 func GetUserFromID(db *mongo.Database, col string, _id primitive.ObjectID) (user model.User, err error) {
 	cols := db.Collection(col)
 	filter := bson.M{"_id": _id}
+
 	err = cols.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
-		fmt.Printf("GetUserFromID: %v\n", err)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			err := fmt.Errorf("no data found for ID %s", _id)
+			return user, err
+		}
+
+		err := fmt.Errorf("error retrieving data for ID %s: %s", _id, err.Error())
+		return user, err
 	}
+
 	return user, nil
 }
 
 func GetUserFromUsername(db *mongo.Database, col string, username string) (user model.User, err error) {
 	cols := db.Collection(col)
 	filter := bson.M{"username": username}
+
 	err = cols.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
-		fmt.Printf("GetUserFromUsername: %v\n", err)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			err := fmt.Errorf("no data found for username %s", username)
+			return user, err
+		}
+
+		err := fmt.Errorf("error retrieving data for username %s: %s", username, err.Error())
 		return user, err
 	}
+
 	return user, nil
 }
 
 func GetUserFromEmail(db *mongo.Database, col string, email string) (user model.User, err error) {
 	cols := db.Collection(col)
 	filter := bson.M{"email": email}
-	err = cols.FindOne(context.Background(), filter).Decode(&user)
+
+	err = cols.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
-		fmt.Printf("GetUserFromEmail: %v\n", err)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			err := fmt.Errorf("no data found for email %s", email)
+			return user, err
+		}
+
+		err := fmt.Errorf("error retrieving data for email %s: %s", email, err.Error())
+		return user, err
 	}
+
 	return user, nil
 }
 
 func GetAllUser(db *mongo.Database, col string) (userlist []model.User, err error) {
-	ctx := context.TODO()
 	cols := db.Collection(col)
 	filter := bson.M{}
 
-	cur, err := cols.Find(ctx, filter)
+	cur, err := cols.Find(context.Background(), filter)
 	if err != nil {
 		fmt.Println("Error GetAllUser in colection", col, ":", err)
-		return nil, err
+		return userlist, err
 	}
 
-	// defer cur.Close(ctx)
-	defer func() {
-		if cerr := cur.Close(ctx); cerr != nil {
-			fmt.Println("Error closing cursor:", cerr)
-		}
-	}()
-
-	err = cur.All(context.TODO(), &userlist)
+	err = cur.All(context.Background(), &userlist)
 	if err != nil {
 		fmt.Println("Error reading documents:", err)
-		return nil, err
+		return userlist, err
 	}
 
 	return userlist, nil
 }
 
 // hp
-func InsertHp(db *mongo.Database, col string, hp model.Hp) (insertedID primitive.ObjectID, err error) {
-	insertedID, err = InsertOneDoc(db, col, hp)
+func InsertHp(db *mongo.Database, col string, hpDoc model.Hp, uid string) (insertedID primitive.ObjectID, err error) {
+	objectId := primitive.NewObjectID()
+
+	todo := bson.D{
+		{Key: "_id", Value: objectId},
+		{Key: "title", Value: hpDoc.Title},
+		{Key: "description", Value: hpDoc.Description},
+		{Key: "deadline", Value: hpDoc.Deadline},
+		{Key: "timestamp", Value: bson.D{
+			{Key: "createdat", Value: time.Now()},
+			{Key: "updatedat", Value: time.Now()},
+		}},
+		{Key: "isdone", Value: hpDoc.IsDone},
+		{Key: "user", Value: bson.D{
+			{Key: "uid", Value: uid},
+		}},
+	}
+
+	insertedID, err = InsertOneDoc(db, col, todo)
 	if err != nil {
 		fmt.Printf("InsertHp: %v\n", err)
 	}
-	return insertedID, err
+
+	return insertedID, nil
 }
 
-func GetHpFromID(db *mongo.Database, col string, id primitive.ObjectID) (hp model.Hp) {
+func GetHpFromID(db *mongo.Database, col string, _id primitive.ObjectID) (hp model.Hp, err error) {
 	cols := db.Collection(col)
-	filter := bson.M{"_id": id}
-	err := cols.FindOne(context.Background(), filter).Decode(&hp)
+	filter := bson.M{"_id": _id}
+
+	err = cols.FindOne(context.Background(), filter).Decode(&hp)
 	if err != nil {
-		fmt.Printf("GetHpFromID: %v\n", err)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			fmt.Println("no data found for ID", _id)
+		} else {
+			fmt.Println("error retrieving data for ID", _id, ":", err.Error())
+		}
 	}
-	return hp
-}
 
-func GetHpList(db *mongo.Database, col string) (hp []model.Hp, err error) {
+	return hp, nil
+}
+func GetHpFromUsername(db *mongo.Database, col string, username string) (hp []model.Hp, err error) {
 	cols := db.Collection(col)
-	filter := bson.M{}
+	filter := bson.M{"user.username": username}
+
 	cursor, err := cols.Find(context.Background(), filter)
 	if err != nil {
-		fmt.Println("Error GetHpList in colection", col, ":", err)
+		fmt.Println("Error GetHpFromUsername in colection", col, ":", err)
 		return nil, err
 	}
+
 	err = cursor.All(context.Background(), &hp)
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	return hp, nil
+}
+
+func GetHpFromToken(db *mongo.Database, col string, uid string) (hp []model.Hp, err error) {
+	cols := db.Collection(col)
+	filter := bson.M{"user.uid": uid}
+
+	cursor, err := cols.Find(context.Background(), filter)
+	if err != nil {
+		fmt.Println("Error GetHpFromToken in colection", col, ":", err)
+		return nil, err
+	}
+
+	err = cursor.All(context.Background(), &hp)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	return hp, nil
 }
 

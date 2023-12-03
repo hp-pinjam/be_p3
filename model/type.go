@@ -7,17 +7,20 @@ import (
 )
 
 type User struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	Email    string             `bson:"email,omitempty" json:"email,omitempty"`
-	Username string             `bson:"username,omitempty" json:"username,omitempty"`
-	Password string             `bson:"password,omitempty" json:"password,omitempty"`
-	Role     string             `bson:"role,omitempty" json:"role,omitempty"`
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	UID             string             `bson:"uid,omitempty" json:"uid,omitempty"`
+	Email           string             `bson:"email,omitempty" json:"email,omitempty"`
+	Username        string             `bson:"username,omitempty" json:"username,omitempty"`
+	Password        string             `bson:"password,omitempty" json:"password,omitempty"`
+	ConfirmPassword string             `bson:"confirmpassword,omitempty" json:"confirmpassword,omitempty"`
+	Role            string             `bson:"role,omitempty" json:"role,omitempty"`
 }
 
 type Credential struct {
 	Status  bool   `bson:"status" json:"status"`
 	Token   string `bson:"token,omitempty" json:"token,omitempty"`
 	Message string `bson:"message,omitempty" json:"message,omitempty"`
+	Data    []User `bson:"data,omitempty" json:"data,omitempty"`
 }
 
 type Hp struct {
@@ -34,13 +37,13 @@ type TimeStamp struct {
 	UpdatedAt time.Time `bson:"updatedat,omitempty" json:"updatedat,omitempty"`
 }
 
-type HpList struct {
-	Users  []User `bson:"users,omitempty" json:"users,omitempty"`
-	DataHp []Hp   `bson:"hplist,omitempty" json:"hplist,omitempty"`
-}
+// type HpList struct {
+// 	Users  []User `bson:"users,omitempty" json:"users,omitempty"`
+// 	DataHp []Hp   `bson:"hplist,omitempty" json:"hplist,omitempty"`
+// }
 
 type HpResponse struct {
 	Status  bool   `bson:"status" json:"status"`
 	Message string `bson:"message,omitempty" json:"message,omitempty"`
-	Data    Hp     `bson:"data,omitempty" json:"data,omitempty"`
+	Data    []Hp   `bson:"data,omitempty" json:"data,omitempty"`
 }
